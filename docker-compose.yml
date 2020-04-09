@@ -1,0 +1,62 @@
+version: "3.7"
+
+services:
+  wordpress:
+    build:
+      context: ./wordpress
+    ports:
+      - 8080:80
+    restart: always
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    environment:
+      WORDPRESS_DB_HOST: database
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASS}
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_CONFIG_EXTRA: |
+        /* Extra config goes here */
+    volumes:
+      - wordpress:/var/www/html
+    depends_on:
+      - database
+
+  database:
+    image: mariadb:10.5
+    restart: always
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_RANDOM_ROOT_PASSWORD: "1"
+    volumes:
+      - database_data:/var/lib/mysql
+
+  # You can mount the wordpress_backups volume to something that will sync it to the cloud or whatever
+  wordpress_backup:
+    image: aveltens/wordpress-backup
+    restart: always
+    environment:
+      MYSQL_ENV_MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ENV_MYSQL_USER: ${DB_USER}
+      MYSQL_ENV_MYSQL_PASSWORD: ${DB_PASS}
+    links:
+      - database:mysql
+    volumes:
+      - wordpress:/var/www/html
+      - wordpress_backups:/backups
+
+volumes:
+  wordpress:
+  database_data:
+  wordpress_backups:
